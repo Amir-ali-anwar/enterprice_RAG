@@ -7,7 +7,7 @@ def split_text_into_chunks(text: str, chunk_size: int) -> List[str]:
     Ensures chunks do not exceed the specified size.
     """
     
-    with logfire.start_span("split_text_into_chunks"):
+    with logfire.span("split_text_into_chunks"):
         if not text.strip():
             return []
 
@@ -27,6 +27,12 @@ def split_text_into_chunks(text: str, chunk_size: int) -> List[str]:
             chunks.append(current_chunk.strip())
             
         valid_chunks = [chunk for chunk in chunks if chunk.strip()]
-        logfire.log(f"Split text into {len(valid_chunks)} chunks.")
-        return valid_chunks 
+        logfire.info(f"Split text into {len(valid_chunks)} chunks.")
+        return valid_chunks
+
+
+# Alias for backwards compatibility
+def chunk_text(text: str, chunk_size: int = 1000) -> List[str]:
+    """Alias for split_text_into_chunks."""
+    return split_text_into_chunks(text, chunk_size) 
             

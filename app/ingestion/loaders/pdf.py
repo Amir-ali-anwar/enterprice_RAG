@@ -4,9 +4,18 @@ from pypdf import PdfReader, PdfWriter
 from google.cloud import documentai
 from app.config import settings
 
-client = documentai.DocumentProcessorServiceClient()
+# Lazy initialization - client created only when needed
+_client = None
 
 MAX_PAGES_PER_REQUEST = 15
+
+
+def _get_client():
+    """Get or create the Document AI client lazily."""
+    global _client
+    if _client is None:
+        _client = documentai.DocumentProcessorServiceClient()
+    return _client
 
 def load_pdf(file_name: str):
     """
@@ -20,7 +29,8 @@ def load_pdf(file_name: str):
             total_pages = len(reader.pages)
             logfire.info(f"Total pages in PDF: {total_pages}")
 
-            name = client.processor_path(settings.GCP_PROJECT_ID, settings.GCP_LOCATION, settings.GCP_PROCESSOR_ID)
+            client = _get_client()
+            name = client.processor_path(settings.PROJECT_ID, settings.GCP_DOC_AI_LOCATION, settings.GCP_DOC_AI_PROCESSOR_ID)
             document_chunks = ''
             
             if total_pages <= MAX_PAGES_PER_REQUEST:
@@ -66,5 +76,10 @@ def process_chunk(name, image_content):
         name=name,
         raw_document=raw_document
     )
+    client = _get_client()
     response = client.process_document(request=request)
     return response.document.text
+
+
+# Alias for backwards compatibility
+parse_pdf = load_pdf
