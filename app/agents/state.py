@@ -6,6 +6,6 @@ class AgentState(TypedDict):
     message: Annotated[List[dict], operator.add]
     current_query: str
     documents: List[dict]
-    plan: str
+    plan: List[str] | str
     status: str
     final_answer: str   

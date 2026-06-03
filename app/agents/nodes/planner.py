@@ -10,12 +10,12 @@ llm = ChatGroq(
     temperature=0,   
 )
 
-def generate_plan(state: AgentState) -> str:
+def generate_plan(state: AgentState) -> dict:
     """
     The Planner determines if a search is needed based on the ENTIRE conversation.
     """
-    
-    history = "\n".join([f"User: {msg['user']}\nAgent: {msg['agent']}" for msg in state["message"]])
+
+    history='' 
     for msg in state["message"][:-1]:
         role= "User" if msg['role'] == "user" else "Agent"
         history += f"{role}: {msg['content']}\n"
