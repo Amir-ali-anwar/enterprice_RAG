@@ -1,12 +1,14 @@
 import logfire
-from qdrant_client import QdrantClient 
+from qdrant_client import QdrantClient
 from qdrant_client.http import models
+
 from app.config import settings
 from app.services.retrieval.embedding import get_embedding_model, embed_query
 
-client= QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY)
+client = QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY)
 
-def search_enterprise_knowledge(query:str, limit: int = 8):
+
+def search_enterprise_knowledge(query: str, limit: int = 8):
     """
     Performs a high-precision search in the enterprise knowledge base.
     Uses the modern query_points interface.
@@ -20,14 +22,18 @@ def search_enterprise_knowledge(query:str, limit: int = 8):
             limit=limit,
             with_payload=True,
         )
-        
-        results=[]
+
+        results = []
 
         for res in search_result.points:
-            results.append({"content":res.payload('text',''),
-                            "score":res.score,
-                            "source":res.payload('source',None)
-            })
+            payload = res.payload or {}
+            results.append(
+                {
+                    "content": payload.get("text", ""),
+                    "score": res.score,
+                    "source": payload.get("source", None),
+                }
+            )
 
         logfire.info(f"Found {len(results)} results for query: {query}")
         return results
