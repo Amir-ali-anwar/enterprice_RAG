@@ -17,7 +17,7 @@ def search_enterprise_knowledge(query: str, limit: int = 8):
         logfire.info("Searching enterprise knowledge base")
         vector = embed_query(query)
         search_result = client.query_points(
-            collection_name=settings.QDRANT_COLLECTION_NAME,
+            collection_name=settings.QDRANT_COLLECTION,
             query_vector=vector,
             limit=limit,
             with_payload=True,

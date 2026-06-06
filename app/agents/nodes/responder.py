@@ -21,11 +21,11 @@ def generate_node(state: AgentState):
 
     history_str = ""
 
-    for msg in state['messages'][-1]:
+    for msg in state['message'][:-1]:
         role = "User" if msg['role'] == "user" else "Assistant"
         history_str += f"{role} : {msg['content']}\n"
 
-    user_msg = state['messages'][-1]['content'] if state['messages'] else ''
+    user_msg = state['message'][-1]['content'] if state['message'] else ''
 
     if query == "CONVERSATIONAL":
         logfire.info("Generating conversational response using memory.")
@@ -76,10 +76,12 @@ def generate_node(state: AgentState):
         return {
             "messages": [{"role": "assistant", "content": response.content}],
             "status": "Response Generated",
+            "final_answer": response.content,
         }
+
     except Exception as e:
         logfire.error("Error generating response with Groq LLM: {error}", error=e)
-        return {"messages": [{"role": "assistant", "content": "I apologize, but I encountered an error while generating the response. Please try again."}], 
+        return {"message": [{"role": "assistant", "content": "I apologize, but I encountered an error while generating the response. Please try again."}], 
                 "status": "Error"
         }
           

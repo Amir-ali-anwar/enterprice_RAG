@@ -10,7 +10,7 @@ from app.agents.graph import rag_agent
 
 load_dotenv()
 
-logfire.configure(send_to=os.environ.get("LOGFIRE_SEND_TO"), name="rag-enterprise")
+logfire.configure(send_to_logfire=os.environ.get("LOGFIRE_SEND_TO"), service_name="rag-enterprise")
 
 app = FastAPI(title="Enterprise Agentic RAG API")
 
@@ -48,7 +48,7 @@ def query(request: QueryRequest):
     config = {"configurable": {"thread_id": thread_id}}
 
     initial_state = {
-        "messages": [{"role": "user", "content": query_text}],
+        "message": [{"role": "user", "content": query_text}],
         "current_query": query_text,
         "documents": [],
         "plan": ["Start"],

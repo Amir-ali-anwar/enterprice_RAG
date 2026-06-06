@@ -42,7 +42,7 @@ def generate_plan(state: AgentState) -> dict:
 
     with logfire.span("Planning Decision"):
         decision = llm.invoke(prompt).content.strip()
-        logfire.log("Intent Identified", decision=decision)
+        logfire.info("Intent Identified", decision=decision)
 
     if decision == "CONVERSATIONAL":
         return {

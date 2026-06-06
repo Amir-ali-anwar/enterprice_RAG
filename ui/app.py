@@ -15,7 +15,7 @@ try:
     if not token:
         print('ERROR: Token not found')
     
-    logfire.configure(token)
+    logfire.configure(token=token)
     LOGFIRE_STATUS = "Connected & Tracing"
 
 except Exception as e:
@@ -105,7 +105,7 @@ if prompt := st.chat_input("Ask a technical question about enterprise documents.
                     with logfire.span("📡 Calling RAG Backend"):
                         base_url = os.getenv("BACKEND_URL", "http://localhost:8000")
                         url = f"{base_url}/query"
-                        payload = {"q":prompt, "thread_id": st.session_state.session_id}
+                        payload = {"query": prompt, "thread_id": st.session_state.session_id}
                         response = requests.post(url, json=payload, timeout=50)
                         data= response.json()
 
@@ -139,14 +139,13 @@ if prompt := st.chat_input("Ask a technical question about enterprise documents.
 
         answer_placeholder = st.empty()
         full_answer = data.get("answer", "No Response")
-        
+        print('answer', full_answer)
         curr_text=''
 
         for char in full_answer:
             curr_text += char
             answer_placeholder.markdown(curr_text)
             time.sleep(0.02)
-
         answer_placeholder.markdown(full_answer)
         st.session_state.messages.append({"role": "assistant", "content": full_answer})
         logfire.info("✅ Answer displayed to user", 
