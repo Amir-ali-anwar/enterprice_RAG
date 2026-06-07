@@ -7,12 +7,18 @@ import logfire
 from pydantic import BaseModel
 
 from app.agents.graph import rag_agent
+from app.graudrails import initialize_rails, guard
 
 load_dotenv()
 
 logfire.configure(send_to_logfire=os.environ.get("LOGFIRE_SEND_TO"), service_name="rag-enterprise")
 
 app = FastAPI(title="Enterprise Agentic RAG API")
+
+
+@app.on_event('startup')
+def startup_event():
+    initialize_rails()
 
 
 class QueryRequest(BaseModel):
@@ -55,6 +61,21 @@ def query(request: QueryRequest):
         "status": "Initializing Graph...",
     }
     try:
+
+        logfire.info("🛡️ Checking query with guardrails")
+        rail_fired, rail_response = guard(query_text)
+
+        if rail_fired:
+            logfire.info(f"🛡️ Request blocked by guardrails | thread={thread_id}")
+            return {
+                "question": query_text,
+                "answer": rail_response,
+                "thought_process": ["Intent: Guardrails Fired", "Retrieval: Skipped"],
+                "status": "Blocked by guardrails.",
+                "sources": [],
+            }
+
+        logfire.info("✅ Query passed guardrails, invoking LangGraph RAG pipeline")
         final_output = rag_agent.invoke(initial_state, config=config)
         return {
             "question": query_text,

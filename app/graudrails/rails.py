@@ -78,6 +78,12 @@ def guard(message: str) -> tuple[bool, str | None]:
             else str(result)
         )
 
+        logfire.info(
+            "🛡️ NeMo raw response",
+            raw_result=str(result),
+            parsed_content=content[:200],
+        )
+
         fired = any(
             indicator.lower() in content.lower()
             for indicator in RAIL_INDICATORS
