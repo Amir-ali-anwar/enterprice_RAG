@@ -36,4 +36,4 @@ images:
   - 'us-central1-docker.pkg.dev/${PROJECT_ID}/enterprise-rag-repo/ingestion:latest'
 
 # Give Cloud Build enough time for dependency downloads
-timeout: '7200s'
+timeout: '14400s'

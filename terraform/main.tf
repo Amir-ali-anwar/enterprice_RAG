@@ -90,6 +90,12 @@ resource "google_project_iam_member" "compute_build_artifact_registry_writer" {
 	member  = "serviceAccount:${local.compute_default_service_account}"
 }
 
+resource "google_project_iam_member" "compute_build_logs_writer" {
+	project = var.project_id
+	role    = "roles/logging.logWriter"
+	member  = "serviceAccount:${local.compute_default_service_account}"
+}
+
 resource "google_project_iam_member" "cloudbuild_storage_access" {
 	project = var.project_id
 	role    = "roles/storage.objectViewer"
@@ -99,5 +105,11 @@ resource "google_project_iam_member" "cloudbuild_storage_access" {
 resource "google_project_iam_member" "cloudbuild_artifact_registry_writer" {
 	project = var.project_id
 	role    = "roles/artifactregistry.writer"
+	member  = "serviceAccount:${local.cloud_build_service_account}"
+}
+
+resource "google_project_iam_member" "cloudbuild_logs_writer" {
+	project = var.project_id
+	role    = "roles/logging.logWriter"
 	member  = "serviceAccount:${local.cloud_build_service_account}"
 }

@@ -9,9 +9,9 @@ RUN apt-get update && apt-get install -y \
     libmagic-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install only backend dependencies to avoid resolver backtracking
+COPY requirements-backend.txt .
+RUN pip install --no-cache-dir --prefer-binary -r requirements-backend.txt
 
 # Copy application code
 COPY . .
