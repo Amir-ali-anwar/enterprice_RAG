@@ -26,8 +26,8 @@ def _get_ranker() -> Ranker:
 
 
 def rerank_documents(
-    query: str, documents: List[str], top_k: int = 10
-) -> List[str]:
+    query: str, documents: List[Dict[str, Any]], top_k: int = 10
+) -> List[Dict[str, Any]]:
     """
     Refines retrieval results by re-scoring documents based on query relevance
     using FlashRank cross-encoder model (ms-marco-MiniLM-L-6-v2)
@@ -35,6 +35,9 @@ def rerank_documents(
     Standard vector search (Cosine Similarity) is fast but mathematically "fuzzy."
     FlashRank uses a Cross-Encoder approach which is much more precise but usually slow.
     FlashRank solves this by using highly optimized, quantized ONNX models locally.
+
+    Accepts and returns full retrieval records (content/source/score/chunk_id)
+    so citation metadata survives reranking instead of being reduced to plain text.
     """
     if not documents:
         return []
@@ -45,7 +48,7 @@ def rerank_documents(
         ranker = _get_ranker()
 
         passages = [
-            {"id": str(i), "text": doc} for i, doc in enumerate(documents)
+            {"id": str(i), "text": doc["content"]} for i, doc in enumerate(documents)
         ]
 
         request = RerankRequest(
@@ -58,7 +61,8 @@ def rerank_documents(
 
         ranked_docs = []
         for passage in response[:top_k]:
-            ranked_docs.append(passage["text"])
+            original = documents[int(passage["id"])]
+            ranked_docs.append({**original, "rerank_score": float(passage["score"])})
 
         duration = time.time() - start_time
         logfire.info(

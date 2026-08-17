@@ -16,13 +16,19 @@ def retriever_node(state: AgentState) -> AgentState:
     results = search_enterprise_knowledge(query, limit=15)
     logfire.info(f"Found {len(results)} results for query: {query}")
 
-    # Reranking of documents
-    reranked_documents = rerank_documents(
-        query, [res["content"] for res in results], top_k=5
-    )
+    # Reranking of documents (preserves source/score/chunk_id for citations)
+    reranked_documents = rerank_documents(query, results, top_k=5)
     logfire.info(f"Found {len(reranked_documents)} results for query: {query}")
 
-    formatted_docs = [f"CONTENT: {doc}\n" for doc in reranked_documents]
+    formatted_docs = [
+        {
+            "content": doc.get("content", ""),
+            "source": doc.get("source") or "unknown",
+            "score": doc.get("rerank_score", doc.get("score")),
+            "chunk_id": doc.get("chunk_id"),
+        }
+        for doc in reranked_documents
+    ]
 
     return AgentState(
         documents=formatted_docs,

@@ -27,6 +27,8 @@ def generate_node(state: AgentState):
 
     user_msg = state['message'][-1]['content'] if state['message'] else ''
 
+    sources_used = []
+
     if query == "CONVERSATIONAL":
         logfire.info("Generating conversational response using memory.")
 
@@ -58,27 +60,44 @@ def generate_node(state: AgentState):
         logfire.info("Generating technical RAG response.")
 
         max_context_chars = 25000
-        full_context = ""
 
         # Using documents (plural) as defined in AgentState
         documents = state.get("documents") or []
-        for doc in documents:
-            if len(full_context) + len(doc) < max_context_chars:
-                full_context += doc + "\n\n"
-            else:
+
+        context_blocks = []
+        seen_sources = set()
+        total_len = 0
+
+        for i, doc in enumerate(documents, start=1):
+            content = doc.get("content", "") if isinstance(doc, dict) else str(doc)
+            source = doc.get("source", "unknown") if isinstance(doc, dict) else "unknown"
+
+            block = f"[{i}] SOURCE: {source}\n{content}"
+            if total_len + len(block) >= max_context_chars:
                 logfire.warning("Context truncated to fit Groq TPM limits.")
                 break
 
+            context_blocks.append(block)
+            total_len += len(block)
+
+            if source not in seen_sources:
+                seen_sources.add(source)
+                sources_used.append((len(sources_used) + 1, source))
+
+        full_context = "\n\n".join(context_blocks)
+
         prompt = f"""
-        You are a Senior Technical Architect. 
-        Answer the question using the TECHNICAL CONTEXT provided. 
-        
+        You are a Senior Technical Architect.
+        Answer the question using the TECHNICAL CONTEXT provided.
+        The context is split into numbered blocks like [1], [2] — each tagged with its SOURCE.
+        Cite the block numbers inline (e.g. "... autoscaling [1] ...") for claims drawn from the context.
+
         TECHNICAL CONTEXT:
         {full_context}
-        
+
         CONVERSATION HISTORY:
         {history_str}
-        
+
         USER QUESTION:
         "{user_msg}"
         """
@@ -87,10 +106,17 @@ def generate_node(state: AgentState):
         with logfire.span("Generating response with Groq LLM"):
             response = llm.invoke(prompt)
 
+        answer = response.content
+        if sources_used:
+            citations = "\n\n**Sources:**\n" + "\n".join(
+                f"[{n}] {source}" for n, source in sources_used
+            )
+            answer += citations
+
         return {
-            "message": [{"role": "assistant", "content": response.content}],
+            "message": [{"role": "assistant", "content": answer}],
             "status": "Response Generated",
-            "final_answer": response.content,
+            "final_answer": answer,
         }
 
     except Exception as e:

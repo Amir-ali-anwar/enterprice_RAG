@@ -2,6 +2,7 @@ import os
 import sys
 import uuid
 import json
+import hashlib
 import tempfile
 import logfire
 import vertexai
@@ -109,19 +110,36 @@ def process_file(file_path: str, filename: str, source_type: str):
             # 5. Embed and Index in Qdrant
             with logfire.span("🧠 Vectorizing & Indexing"):
                 embeddings = embed_texts(chunks)
+
+                # Deterministic document/chunk identity so re-ingesting the
+                # same file overwrites its existing points instead of
+                # duplicating them (point ids are derived, not random).
+                document_id = hashlib.sha256(
+                    f"{source_type}/{filename}".encode("utf-8")
+                ).hexdigest()
+
                 points = []
                 for i, (chunk, vector) in enumerate(zip(chunks, embeddings)):
+                    chunk_id = f"{document_id}:{i}"
+                    content_hash = hashlib.sha256(chunk.encode("utf-8")).hexdigest()
+                    point_id = str(uuid.uuid5(uuid.NAMESPACE_URL, chunk_id))
+
                     points.append(models.PointStruct(
-                        id=str(uuid.uuid4()),
+                        id=point_id,
                         vector=vector,
                         payload={
                             "text": chunk,
                             "source": filename,
                             "source_type": source_type,
-                            "raw_gcs_path": f"gs://{settings.RAW_BUCKET}/{raw_gcs_path}"
+                            "raw_gcs_path": f"gs://{settings.RAW_BUCKET}/{raw_gcs_path}",
+                            "document_id": document_id,
+                            "chunk_id": chunk_id,
+                            "chunk_index": i,
+                            "content_hash": content_hash,
+                            "embedding_model": "text-embedding-005",
                         }
                     ))
-                
+
                 qdrant_client = _get_qdrant_client()
                 qdrant_client.upsert(
                     collection_name=settings.QDRANT_COLLECTION,

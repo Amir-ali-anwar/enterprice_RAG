@@ -123,11 +123,21 @@ if prompt := st.chat_input("Ask a technical question about enterprise documents.
 
                     if sources:
                         with st.expander("📚 Sources"):
-                            for i,src in enumerate(sources):
-                                 # Create a preview title for each chunk
-                                 preview = src[:100].replace("\n", " ") + "..."
-                                 with st.expander(f"chunk {i+1}:{preview}"):
-                                    st.info(src)
+                            for i, src in enumerate(sources):
+                                if isinstance(src, dict):
+                                    source_name = src.get("source", "unknown")
+                                    score = src.get("score")
+                                    content = src.get("content", "")
+                                    score_label = f" · score {score:.2f}" if isinstance(score, (int, float)) else ""
+                                    preview = content[:100].replace("\n", " ") + "..."
+                                    with st.expander(f"[{i+1}] {source_name}{score_label} — {preview}"):
+                                        st.caption(f"Source: {source_name}")
+                                        st.info(content)
+                                else:
+                                    # Backward-compat: older API responses returned plain strings
+                                    preview = str(src)[:100].replace("\n", " ") + "..."
+                                    with st.expander(f"chunk {i+1}: {preview}"):
+                                        st.info(src)
                 except Exception as e:
                     logfire.error(f"❌ UI-Backend Connection Failed: {e}")
                     status.update(label="❌ Connection Failed", state="error")

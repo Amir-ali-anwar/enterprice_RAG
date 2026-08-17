@@ -32,6 +32,8 @@ def search_enterprise_knowledge(query: str, limit: int = 8):
                     "content": payload.get("text", ""),
                     "score": res.score,
                     "source": payload.get("source", None),
+                    "chunk_id": payload.get("chunk_id"),
+                    "document_id": payload.get("document_id"),
                 }
             )
 
