@@ -33,6 +33,8 @@ Thumbs.db
 # Logs and misc
 *.log
 .python-version
+evals/eval_runs.json
+evals/live_pipeline_results.json
 
 # Data
 DATA/noisy_data/
