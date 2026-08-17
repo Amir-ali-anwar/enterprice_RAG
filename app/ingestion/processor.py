@@ -2,10 +2,12 @@ import os
 import sys
 import uuid
 import json
+import tempfile
 import logfire
 import vertexai
 
 from typing import List
+from fastapi import FastAPI, Request
 from google.cloud import storage
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
@@ -180,10 +182,46 @@ def process_directory(dir_path: str, source_type: str):
     with logfire.span("📁 Scanning Directory", path=dir_path, source=source_type):
         files = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
         logfire.info(f"🔍 Found {len(files)} files")
-        
+
         for filename in files:
             file_path = os.path.join(dir_path, filename)
             process_file(file_path, filename, source_type)
+
+
+# --- EVENT-DRIVEN SERVICE ENTRYPOINT ---
+# terraform/ingestion.tf deploys this module as a Cloud Run service behind an
+# Eventarc trigger on "google.cloud.storage.object.v1.finalized". Eventarc
+# POSTs the GCS object payload to "/" on every upload to the raw bucket.
+app = FastAPI(title="Enterprise Ingestion Service")
+
+
+@app.post("/")
+async def handle_gcs_event(request: Request):
+    payload = await request.json()
+    bucket_name = payload.get("bucket")
+    object_name = payload.get("name")
+
+    if not bucket_name or not object_name:
+        logfire.warning("⏩ Ignoring event with missing bucket/name", payload=payload)
+        return {"status": "ignored"}
+
+    filename = os.path.basename(object_name)
+    source_type = object_name.split("/")[0] if "/" in object_name else "general"
+
+    with logfire.span("📨 GCS Event Received", bucket=bucket_name, object=object_name):
+        storage_client = _get_storage_client()
+        blob = storage_client.bucket(bucket_name).blob(object_name)
+
+        with tempfile.NamedTemporaryFile(suffix=f"_{filename}", delete=False) as tmp:
+            tmp_path = tmp.name
+        try:
+            blob.download_to_filename(tmp_path)
+            process_file(tmp_path, filename, source_type)
+        finally:
+            os.remove(tmp_path)
+
+    return {"status": "processed", "file": filename}
+
 
 if __name__ == "__main__":
     # Usage: python -m app.ingestion.processor [dir_path] [source_type] [--wipe]

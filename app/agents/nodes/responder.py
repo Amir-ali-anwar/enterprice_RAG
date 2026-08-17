@@ -88,7 +88,7 @@ def generate_node(state: AgentState):
             response = llm.invoke(prompt)
 
         return {
-            "messages": [{"role": "assistant", "content": response.content}],
+            "message": [{"role": "assistant", "content": response.content}],
             "status": "Response Generated",
             "final_answer": response.content,
         }
