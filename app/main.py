@@ -7,18 +7,13 @@ import logfire
 from pydantic import BaseModel
 
 from app.agents.graph import rag_agent
-from app.graudrails import initialize_rails, guard
+from app.graudrails import guard
 
 load_dotenv()
 
 logfire.configure(send_to_logfire=os.environ.get("LOGFIRE_SEND_TO"), service_name="rag-enterprise")
 
 app = FastAPI(title="Enterprise Agentic RAG API")
-
-
-@app.on_event('startup')
-def startup_event():
-    initialize_rails()
 
 
 class QueryRequest(BaseModel):

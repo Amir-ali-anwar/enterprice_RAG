@@ -57,10 +57,7 @@ def guard(message: str) -> tuple[bool, str | None]:
     """
 
     if _rails is None:
-        logfire.warning(
-            "⚠️ Guardrails not initialised — skipping gate."
-        )
-        return False, None
+        initialize_rails()
 
     with logfire.span("🛡️ Guardrails Check"):
         result = _rails.generate(
