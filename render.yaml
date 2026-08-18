@@ -18,3 +18,20 @@ services:
         value: "1"
       - key: TOKENIZERS_PARALLELISM
         value: "false"
+
+  - type: web
+    name: enterprise-rag-frontend
+    runtime: python
+    plan: starter
+    rootDir: .
+    buildCommand: |
+      python -m pip install --upgrade pip setuptools wheel
+      pip install -r requirements-ui.txt
+    startCommand: streamlit run ui/app.py --server.port $PORT --server.address 0.0.0.0
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: BACKEND_URL
+        sync: false
