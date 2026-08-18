@@ -27,7 +27,7 @@ services:
     buildCommand: |
       python -m pip install --upgrade pip setuptools wheel
       pip install -r requirements-ui.txt
-    startCommand: streamlit run ui/app.py --server.port $PORT --server.address 0.0.0.0
+    startCommand: python -m streamlit run ui/app.py --server.port $PORT --server.address 0.0.0.0
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
