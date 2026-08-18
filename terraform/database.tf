@@ -9,12 +9,14 @@ resource "google_sql_database_instance" "postgres" {
     tier = "db-f1-micro" # Smallest tier to keep costs low during dev
     
     ip_configuration {
-      ipv4_enabled    = true
-      # This allows Cloud Run to connect securely
-      authorized_networks {
-        name  = "all"
-        value = "0.0.0.0/0" 
-      }
+      # Cloud Run connects via the Cloud SQL Auth Proxy over the
+      # /cloudsql unix socket (see the cloud_sql_instance volume in
+      # cloud_run.tf / ingestion.tf), which is authenticated through the
+      # Cloud SQL Admin API + IAM rather than the IP allowlist below.
+      # No authorized_networks entry is needed for that path, so the
+      # instance keeps a public IP (required by the proxy) without also
+      # allowing raw internet access to it.
+      ipv4_enabled = true
     }
   }
   deletion_protection = false # Set to true for production!
@@ -25,8 +27,13 @@ resource "google_sql_database" "database" {
   instance = google_sql_database_instance.postgres.name
 }
 
+resource "random_password" "db_password" {
+  length  = 24
+  special = false
+}
+
 resource "google_sql_user" "users" {
   name     = "rag_admin"
   instance = google_sql_database_instance.postgres.name
-  password = var.db_password
+  password = random_password.db_password.result
 }

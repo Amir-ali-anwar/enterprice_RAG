@@ -53,6 +53,38 @@ resource "google_service_account" "ingestion_sa" {
 	display_name = "Ingestion Service Account"
 }
 
+resource "google_service_account" "backend_sa" {
+	account_id   = "${replace(var.app_name, "-", "")}-backend"
+	display_name = "Backend API Service Account"
+}
+
+resource "google_service_account" "ui_sa" {
+	account_id   = "${replace(var.app_name, "-", "")}-ui"
+	display_name = "UI Service Account"
+}
+
+resource "google_project_iam_member" "backend_roles" {
+	for_each = toset([
+		"roles/aiplatform.user",   # Vertex AI embeddings
+		"roles/cloudsql.client",   # Cloud SQL Auth Proxy connection
+		"roles/logging.logWriter",
+	])
+
+	project = var.project_id
+	role    = each.value
+	member  = "serviceAccount:${google_service_account.backend_sa.email}"
+}
+
+resource "google_project_iam_member" "ui_roles" {
+	for_each = toset([
+		"roles/logging.logWriter",
+	])
+
+	project = var.project_id
+	role    = each.value
+	member  = "serviceAccount:${google_service_account.ui_sa.email}"
+}
+
 resource "google_project_iam_member" "ingestion_roles" {
 	for_each = toset([
 		"roles/run.invoker",

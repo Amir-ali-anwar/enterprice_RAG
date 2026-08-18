@@ -7,3 +7,4 @@ streamlit
 requests==2.33.1
 python-dotenv==1.2.2
 logfire[requests]==4.32.1
+google-auth==2.36.0

@@ -36,8 +36,13 @@ resource "google_cloud_run_v2_service" "ingestion" {
         value = var.qdrant_url
       }
       env {
-        name  = "QDRANT_API_KEY"
-        value = var.qdrant_api_key
+        name = "QDRANT_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.provider_secrets["qdrant-api-key"].secret_id
+            version = "latest"
+          }
+        }
       }
       env {
         name  = "DB_CONNECTION_NAME"
@@ -56,16 +61,26 @@ resource "google_cloud_run_v2_service" "ingestion" {
         value = google_storage_bucket.processed_data.name
       }
       env {
-        name  = "LOGFIRE_TOKEN"
-        value = var.logfire_token
+        name = "LOGFIRE_TOKEN"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.provider_secrets["logfire-token"].secret_id
+            version = "latest"
+          }
+        }
       }
       env {
         name  = "LANGSMITH_TRACING"
         value = "true"
       }
       env {
-        name  = "LANGSMITH_API_KEY"
-        value = var.langsmith_api_key
+        name = "LANGSMITH_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.provider_secrets["langsmith-api-key"].secret_id
+            version = "latest"
+          }
+        }
       }
       env {
         name  = "LANGSMITH_PROJECT"

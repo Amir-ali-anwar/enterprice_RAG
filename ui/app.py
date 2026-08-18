@@ -1,6 +1,6 @@
-import os 
+import os
 import streamlit as st
-import requests 
+import requests
 import time
 import uuid
 import logfire
@@ -9,6 +9,27 @@ from dotenv import load_dotenv
 env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.env"))
 
 load_dotenv(env_path)
+
+
+def _get_backend_auth_headers(audience: str) -> dict:
+    """Attach a Google-signed ID token so Cloud Run's IAM invoker check
+    (see terraform/cloud_run.tf: backend_invoker) lets this call through.
+
+    Only works when running with Google credentials available (e.g. the
+    UI's Cloud Run service account, or `gcloud auth application-default
+    login` locally). Falls back to no auth header for local dev against
+    an unauthenticated local backend.
+    """
+    try:
+        import google.auth.transport.requests
+        import google.oauth2.id_token
+
+        token = google.oauth2.id_token.fetch_id_token(
+            google.auth.transport.requests.Request(), audience
+        )
+        return {"Authorization": f"Bearer {token}"}
+    except Exception:
+        return {}
 
 try:
     token = os.getenv("LOGFIRE_TOKEN")
@@ -106,7 +127,8 @@ if prompt := st.chat_input("Ask a technical question about enterprise documents.
                         base_url = os.getenv("BACKEND_URL", "http://localhost:8000")
                         url = f"{base_url}/query"
                         payload = {"query": prompt, "thread_id": st.session_state.session_id}
-                        response = requests.post(url, json=payload, timeout=50)
+                        headers = _get_backend_auth_headers(base_url)
+                        response = requests.post(url, json=payload, headers=headers, timeout=50)
                         data= response.json()
 
                     # show reasoning steps from backend

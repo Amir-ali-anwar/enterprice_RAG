@@ -10,6 +10,8 @@ resource "google_cloud_run_v2_service" "backend" {
   ingress  = "INGRESS_TRAFFIC_ALL"
 
   template {
+    service_account = google_service_account.backend_sa.email
+
     vpc_access {
       network_interfaces {
         network = google_compute_network.rag_vpc.name
@@ -56,16 +58,30 @@ resource "google_cloud_run_v2_service" "backend" {
         value = google_storage_bucket.processed_data.name
       }
       env {
-        name  = "GROQ_API_KEY"
-        value = var.groq_api_key
+        name = "GROQ_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.provider_secrets["groq-api-key"].secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name  = "GROQ_MODEL"
+        value = var.groq_model
       }
       env {
         name  = "QDRANT_CLUSTER_ENDPOINT"
         value = var.qdrant_url
       }
       env {
-        name  = "QDRANT_API_KEY"
-        value = var.qdrant_api_key
+        name = "QDRANT_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.provider_secrets["qdrant-api-key"].secret_id
+            version = "latest"
+          }
+        }
       }
       env {
         name  = "DB_CONNECTION_NAME"
@@ -76,8 +92,13 @@ resource "google_cloud_run_v2_service" "backend" {
         value = "rag_admin"
       }
       env {
-        name  = "DB_PASS"
-        value = var.db_password
+        name = "DB_PASS"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.db_password.secret_id
+            version = "latest"
+          }
+        }
       }
       env {
         name  = "DB_NAME"
@@ -100,16 +121,26 @@ resource "google_cloud_run_v2_service" "backend" {
         value = "true"
       }
       env {
-        name  = "LOGFIRE_TOKEN"
-        value = var.logfire_token
+        name = "LOGFIRE_TOKEN"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.provider_secrets["logfire-token"].secret_id
+            version = "latest"
+          }
+        }
       }
       env {
         name  = "LANGSMITH_TRACING"
         value = "true"
       }
       env {
-        name  = "LANGSMITH_API_KEY"
-        value = var.langsmith_api_key
+        name = "LANGSMITH_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.provider_secrets["langsmith-api-key"].secret_id
+            version = "latest"
+          }
+        }
       }
       env {
         name  = "LANGSMITH_PROJECT"
@@ -131,6 +162,8 @@ resource "google_cloud_run_v2_service" "ui" {
   ingress  = "INGRESS_TRAFFIC_ALL"
 
   template {
+    service_account = google_service_account.ui_sa.email
+
     containers {
       image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.app_name}-repo/ui:latest"
       
@@ -150,16 +183,26 @@ resource "google_cloud_run_v2_service" "ui" {
         value = google_cloud_run_v2_service.backend.uri
       }
       env {
-        name  = "LOGFIRE_TOKEN"
-        value = var.logfire_token
+        name = "LOGFIRE_TOKEN"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.provider_secrets["logfire-token"].secret_id
+            version = "latest"
+          }
+        }
       }
       env {
         name  = "LANGSMITH_TRACING"
         value = "true"
       }
       env {
-        name  = "LANGSMITH_API_KEY"
-        value = var.langsmith_api_key
+        name = "LANGSMITH_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.provider_secrets["langsmith-api-key"].secret_id
+            version = "latest"
+          }
+        }
       }
       env {
         name  = "LANGSMITH_PROJECT"
@@ -175,14 +218,18 @@ resource "google_cloud_run_v2_service" "ui" {
 
 
 
-# --- PUBLIC ACCESS (Unauthenticated for Demo) ---
-resource "google_cloud_run_v2_service_iam_member" "backend_public" {
+# --- ACCESS CONTROL ---
+# Backend is no longer public: only the UI's own service account may
+# invoke it. The UI attaches a Google-signed ID token (see ui/app.py)
+# instead of the backend accepting unauthenticated requests from anyone.
+resource "google_cloud_run_v2_service_iam_member" "backend_invoker" {
   name     = google_cloud_run_v2_service.backend.name
   location = google_cloud_run_v2_service.backend.location
   role     = "roles/run.invoker"
-  member   = "allUsers"
+  member   = "serviceAccount:${google_service_account.ui_sa.email}"
 }
 
+# UI stays public so the portfolio demo is reachable without a login.
 resource "google_cloud_run_v2_service_iam_member" "ui_public" {
   name     = google_cloud_run_v2_service.ui.name
   location = google_cloud_run_v2_service.ui.location
