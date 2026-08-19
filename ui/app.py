@@ -11,6 +11,20 @@ env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.env"))
 load_dotenv(env_path)
 
 
+def _resolve_backend_url() -> str:
+    """Resolve and sanitize backend base URL from env/config."""
+    raw_value = os.getenv("BACKEND_URL", "").strip()
+
+    # Render env vars are sometimes pasted with quotes/backticks.
+    cleaned = raw_value.strip("\"'`").rstrip("/")
+
+    if cleaned:
+        return cleaned
+
+    # Local fallback only when BACKEND_URL is absent.
+    return "http://localhost:8000"
+
+
 def _get_backend_auth_headers(audience: str) -> dict:
     """Attach a Google-signed ID token so Cloud Run's IAM invoker check
     (see terraform/cloud_run.tf: backend_invoker) lets this call through.
@@ -54,6 +68,7 @@ st.set_page_config(
     
 AI_AVATAR = "🤖"
 USER_AVATAR = "👤"
+BACKEND_BASE_URL = _resolve_backend_url()
 
 # --- SESSION MANAGEMENT ---
 
@@ -71,6 +86,7 @@ with st.sidebar:
     st.title("Enterprise RAG")
     st.markdown("---")
     st.success(f"Logfire: {LOGFIRE_STATUS}")
+    st.caption(f"Backend URL: {BACKEND_BASE_URL}")
     st.info(f'Memory ID: {st.session_state.session_id[:8]}')
 
     if st.button("Clear History"):
@@ -124,11 +140,12 @@ if prompt := st.chat_input("Ask a technical question about enterprise documents.
                 try:
 
                     with logfire.span("📡 Calling RAG Backend"):
-                        base_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+                        base_url = BACKEND_BASE_URL
                         url = f"{base_url}/query"
                         payload = {"query": prompt, "thread_id": st.session_state.session_id}
                         headers = _get_backend_auth_headers(base_url)
                         response = requests.post(url, json=payload, headers=headers, timeout=50)
+                        response.raise_for_status()
                         data= response.json()
 
                     # show reasoning steps from backend
