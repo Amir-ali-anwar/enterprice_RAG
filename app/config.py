@@ -15,6 +15,7 @@ class Settings:
     QDRANT_URL = os.getenv("QDRANT_CLUSTER_ENDPOINT")
     QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
     QDRANT_COLLECTION = "enterprise_rag"
+    ENABLE_RERANK = os.getenv("ENABLE_RERANK", "false").lower() in {"1", "true", "yes", "on"}
 
     # --- REASONING ENGINE (GROQ) ---
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
