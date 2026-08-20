@@ -51,6 +51,36 @@ def _get_backend_auth_headers(audience: str) -> dict:
     except Exception:
         return {}
 
+
+def _call_backend_query(base_url: str, payload: dict) -> dict:
+    """Call backend /query and return parsed JSON with better error messages."""
+    url = f"{base_url}/query"
+
+    # Render-hosted backends are usually public; signed ID tokens are needed
+    # mostly for Cloud Run protected invoker paths.
+    use_auth = ".run.app" in base_url
+    headers = _get_backend_auth_headers(base_url) if use_auth else {}
+
+    response = requests.post(url, json=payload, headers=headers, timeout=60)
+
+    # If token-based auth was attempted and denied, retry once without token.
+    if response.status_code in (401, 403) and headers:
+        response = requests.post(url, json=payload, headers={}, timeout=60)
+
+    if response.status_code >= 400:
+        body_preview = response.text[:400].replace("\n", " ")
+        raise RuntimeError(
+            f"Backend HTTP {response.status_code} from {url}: {body_preview}"
+        )
+
+    try:
+        return response.json()
+    except Exception as json_error:
+        body_preview = response.text[:400].replace("\n", " ")
+        raise RuntimeError(
+            f"Invalid JSON from backend {url}: {body_preview}"
+        ) from json_error
+
 try:
     token = _resolve_logfire_token()
     if token:
@@ -149,12 +179,8 @@ if prompt := st.chat_input("Ask a technical question about enterprise documents.
 
                     with logfire.span("📡 Calling RAG Backend"):
                         base_url = BACKEND_BASE_URL
-                        url = f"{base_url}/query"
                         payload = {"query": prompt, "thread_id": st.session_state.session_id}
-                        headers = _get_backend_auth_headers(base_url)
-                        response = requests.post(url, json=payload, headers=headers, timeout=50)
-                        response.raise_for_status()
-                        data= response.json()
+                        data = _call_backend_query(base_url, payload)
 
                     # show reasoning steps from backend
 
@@ -188,7 +214,9 @@ if prompt := st.chat_input("Ask a technical question about enterprise documents.
                 except Exception as e:
                     logfire.error(f"❌ UI-Backend Connection Failed: {e}")
                     status.update(label="❌ Connection Failed", state="error")
-                    st.error("Backend Connection Failed ")
+                    st.error("Backend Connection Failed")
+                    st.caption(f"Target backend: {BACKEND_BASE_URL}")
+                    st.code(str(e))
                     st.stop()
 
 
