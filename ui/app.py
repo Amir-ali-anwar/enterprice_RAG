@@ -174,6 +174,7 @@ if prompt := st.chat_input("Ask a technical question about enterprise documents.
 
         with st.chat_message("assistant", avatar=AI_AVATAR):
             with st.status("Thinking...", expanded=True) as status:
+                data = None
 
                 try:
 
@@ -217,26 +218,27 @@ if prompt := st.chat_input("Ask a technical question about enterprise documents.
                     st.error("Backend Connection Failed")
                     st.caption(f"Target backend: {BACKEND_BASE_URL}")
                     st.code(str(e))
-                    st.stop()
+                    status.update(label="❌ Request failed", state="error", expanded=True)
 
 
         # Final placeholder                    
 
-        answer_placeholder = st.empty()
-        full_answer = data.get("answer", "No Response")
-        print('answer', full_answer)
-        curr_text=''
+        if data is not None:
+            answer_placeholder = st.empty()
+            full_answer = data.get("answer", "No Response")
+            print('answer', full_answer)
+            curr_text=''
 
-        for char in full_answer:
-            curr_text += char
-            answer_placeholder.markdown(curr_text)
-            time.sleep(0.02)
-        answer_placeholder.markdown(full_answer)
-        st.session_state.messages.append({"role": "assistant", "content": full_answer})
-        logfire.info("✅ Answer displayed to user", 
-                      user_query=prompt, 
-                      session_id=st.session_state.session_id,
-                      answer=full_answer[:500])
+            for char in full_answer:
+                curr_text += char
+                answer_placeholder.markdown(curr_text)
+                time.sleep(0.02)
+            answer_placeholder.markdown(full_answer)
+            st.session_state.messages.append({"role": "assistant", "content": full_answer})
+            logfire.info("✅ Answer displayed to user", 
+                          user_query=prompt, 
+                          session_id=st.session_state.session_id,
+                          answer=full_answer[:500])
 
                                     
 

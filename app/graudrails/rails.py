@@ -56,18 +56,30 @@ def guard(message: str) -> tuple[bool, str | None]:
             Message is clean. Proceed to LangGraph/RAG.
     """
 
+    if not settings.ENABLE_GUARDRAILS:
+        logfire.info("🛡️ Guardrails disabled by ENABLE_GUARDRAILS")
+        return False, None
+
     if _rails is None:
-        initialize_rails()
+        try:
+            initialize_rails()
+        except Exception as init_error:
+            logfire.error(f"🛡️ Guardrails init failed, bypassing: {init_error}")
+            return False, None
 
     with logfire.span("🛡️ Guardrails Check"):
-        result = _rails.generate(
-            messages=[
-                {
-                    "role": "user",
-                    "content": message,
-                }
-            ]
-        )
+        try:
+            result = _rails.generate(
+                messages=[
+                    {
+                        "role": "user",
+                        "content": message,
+                    }
+                ]
+            )
+        except Exception as generation_error:
+            logfire.error(f"🛡️ Guardrails generate failed, bypassing: {generation_error}")
+            return False, None
 
         content = (
             result.get("content", "")
