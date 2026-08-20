@@ -25,6 +25,12 @@ def _resolve_backend_url() -> str:
     return "http://localhost:8000"
 
 
+def _resolve_logfire_token() -> str:
+    """Read token from env and clean accidental wrapping quotes."""
+    raw_value = os.getenv("LOGFIRE_TOKEN", "").strip()
+    return raw_value.strip("\"'`")
+
+
 def _get_backend_auth_headers(audience: str) -> dict:
     """Attach a Google-signed ID token so Cloud Run's IAM invoker check
     (see terraform/cloud_run.tf: backend_invoker) lets this call through.
@@ -46,16 +52,18 @@ def _get_backend_auth_headers(audience: str) -> dict:
         return {}
 
 try:
-    token = os.getenv("LOGFIRE_TOKEN")
-    if not token:
-        print('ERROR: Token not found')
-    
-    logfire.configure(token=token)
-    LOGFIRE_STATUS = "Connected & Tracing"
-
+    token = _resolve_logfire_token()
+    if token:
+        logfire.configure(token=token)
+        LOGFIRE_STATUS = "Connected & Tracing"
+    else:
+        # Keep the app fully functional even when observability is disabled.
+        logfire.configure(send_to_logfire=False)
+        LOGFIRE_STATUS = "Disabled (no token configured)"
 except Exception as e:
     print(f"Logfire Init Error in UI: {e}")
-    LOGFIRE_STATUS = f"Error: {str(e)}"
+    logfire.configure(send_to_logfire=False)
+    LOGFIRE_STATUS = "Disabled (token/auth invalid)"
 
 
 
